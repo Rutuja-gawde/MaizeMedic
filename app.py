@@ -11,20 +11,21 @@ from gradcam_utils import make_gradcam_heatmap
 from chatbot import display_chat_ui
 
 DISEASE_INFO = {
-    "Blight":         {"severity":"high",   "label":"HIGH SEVERITY",   "icon":"🔴", "desc":"Caused by Exserohilum turcicum. Long, elliptical gray-green lesions. Up to 50% yield loss if untreated.", "spread":"Airborne spores; humid, warm conditions (18–27°C)."},
-    "Common_Rust":    {"severity":"medium", "label":"MEDIUM SEVERITY",  "icon":"🟡", "desc":"Caused by Puccinia sorghi. Brick-red pustules on both leaf surfaces. Reduces photosynthesis significantly.", "spread":"Wind-dispersed spores; cool, moist weather."},
-    "Gray_Leaf_Spot": {"severity":"high",   "label":"HIGH SEVERITY",   "icon":"🔴", "desc":"Caused by Cercospora zeae-maydis. Rectangular tan-gray lesions between veins. Major yield-limiting disease.", "spread":"Residue-borne; warm nights and high humidity."},
-    "Healthy":        {"severity":"low",    "label":"NO DISEASE",      "icon":"🟢", "desc":"No disease detected. No visible signs of fungal, bacterial, or environmental stress.", "spread":"N/A — plant is healthy."},
+    "Blight":         {"severity":"high",   "label":"HIGH SEVERITY",  "icon":"🔴", "desc":"Caused by Exserohilum turcicum. Long, elliptical gray-green lesions. Up to 50% yield loss if untreated.", "spread":"Airborne spores; humid, warm conditions (18–27°C)."},
+    "Common_Rust":    {"severity":"medium", "label":"MEDIUM SEVERITY", "icon":"🟡", "desc":"Caused by Puccinia sorghi. Brick-red pustules on both leaf surfaces. Reduces photosynthesis significantly.", "spread":"Wind-dispersed spores; cool, moist weather."},
+    "Gray_Leaf_Spot": {"severity":"high",   "label":"HIGH SEVERITY",  "icon":"🔴", "desc":"Caused by Cercospora zeae-maydis. Rectangular tan-gray lesions between veins. Major yield-limiting disease.", "spread":"Residue-borne; warm nights and high humidity."},
+    "Healthy":        {"severity":"low",    "label":"NO DISEASE",     "icon":"🟢", "desc":"No disease detected. No visible signs of fungal, bacterial, or environmental stress.", "spread":"N/A — plant is healthy."},
 }
 
-def show_results(image, model):
+# tab_key makes button keys unique across tab1 and tab2
+def show_results(image, model, tab_key="upload"):
     with st.spinner("Analyzing leaf sample…"):
         img_array = preprocess_image(image)
         predicted_class, confidence = predict_disease(model, img_array)
-        heatmap = make_gradcam_heatmap(img_array, model, "top_conv")
+        heatmap   = make_gradcam_heatmap(img_array, model, "top_conv")
         heatmap_r = cv2.resize(heatmap, (image.size[0], image.size[1]))
-        jet = plt.colormaps['jet'](np.uint8(255 * heatmap_r))[:, :, :3]
-        overlay = np.clip(((jet * 0.4) + (np.array(image) / 255.0)) * 255, 0, 255).astype("uint8")
+        jet       = plt.colormaps['jet'](np.uint8(255 * heatmap_r))[:, :, :3]
+        overlay   = np.clip(((jet * 0.4) + (np.array(image) / 255.0)) * 255, 0, 255).astype("uint8")
         update_history(class_names[predicted_class], confidence)
         st.session_state.last_scan = {
             "disease":     class_names[predicted_class],
@@ -83,12 +84,17 @@ def show_results(image, model):
                 st.markdown('<div class="treatment-grid"><div class="treatment-card urgent"><strong>⚠ Immediate Action</strong>Remove and dispose of infected leaves. Avoid overhead irrigation.</div><div class="treatment-card preventative"><strong>🧪 Chemical Control</strong>Apply appropriate fungicide — consult your local extension officer for dosage.</div></div>', unsafe_allow_html=True)
 
         st.markdown("<div style='height:.5rem'></div>", unsafe_allow_html=True)
-        st.download_button("⬇  DOWNLOAD REPORT", generate_report(image, predicted_class, confidence),
+        st.download_button(
+            "⬇  DOWNLOAD REPORT",
+            generate_report(image, predicted_class, confidence),
             file_name=f"maizemedic_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-            mime="application/json", use_container_width=True)
+            mime="application/json",
+            use_container_width=True,
+            key=f"dl_{tab_key}"          # ← unique per tab
+        )
 
         st.markdown("<div style='height:.3rem'></div>", unsafe_allow_html=True)
-        if st.button("🤖  ASK MAIZEBOT ABOUT THIS SCAN", use_container_width=True, key="ask_bot_btn"):
+        if st.button("🤖  ASK MAIZEBOT ABOUT THIS SCAN", use_container_width=True, key=f"ask_bot_{tab_key}"):  # ← unique per tab
             scan = st.session_state.get("last_scan", {})
             if "messages" not in st.session_state:
                 st.session_state.messages = []
@@ -97,12 +103,12 @@ def show_results(image, model):
                 "content": f"My scan detected {scan.get('disease','').replace('_',' ')} with {scan.get('confidence',0)}% confidence. What should I do?",
                 "ts": datetime.now().strftime("%H:%M")
             })
-            st.session_state.awaiting_reply = True
+            st.session_state.awaiting_reply  = True
             st.session_state.switch_to_chatbot = True
             st.rerun()
 
 
-# ─── Page setup ───────────────────────────────────────────────────────────────
+# ─── Page setup ───
 st.set_page_config(page_title="MaizeMedic", page_icon="🌽", layout="wide", initial_sidebar_state="collapsed")
 
 apply_custom_styles()
@@ -112,49 +118,73 @@ display_header()
 
 st.markdown('<style>section.main>div.block-container{max-width:920px!important;margin:0 auto!important;padding:0 2rem!important;}</style>', unsafe_allow_html=True)
 
-for key, val in [("temp_image", None), ("show_camera", False), ("switch_to_chatbot", False)]:
+for key, val in [("show_camera", False), ("switch_to_chatbot", False)]:
     if key not in st.session_state:
         st.session_state[key] = val
 
-# Auto-switch to chatbot tab via JS
+# Auto-switch to chatbot tab
 if st.session_state.switch_to_chatbot:
     st.session_state.switch_to_chatbot = False
     st.components.v1.html('<script>window.parent.setTimeout(()=>{var t=window.parent.document.querySelectorAll(\'[data-baseweb="tab"]\');if(t.length>=3)t[2].click();},150);</script>', height=0)
 
 tab1, tab2, tab3 = st.tabs(["📁   UPLOAD LEAF IMAGE", "📸   REAL-TIME SCAN", "💬   CONSULT AI"])
 
+# ── Tab 1: Upload ───
 with tab1:
     uploaded_file = st.file_uploader("Drop your leaf image here — JPG, PNG, JPEG", type=["jpg","png","jpeg"], key="file_up")
     if uploaded_file:
         image = Image.open(uploaded_file).convert("RGB")
-        st.session_state.temp_image = None
         if validate_image(image):
-            show_results(image, model)
+            show_results(image, model, tab_key="upload")
     else:
         st.markdown('<div class="empty-state"><div class="empty-state-icon">🌽</div><div class="empty-state-text">Upload a maize leaf image to begin analysis</div></div>', unsafe_allow_html=True)
 
+# ── Tab 2: Camera ───
 with tab2:
-    # Camera instructions for cloud deployment
-    st.markdown("""
-        <div style="padding:12px 16px;background:rgba(0,229,204,0.06);border:1px solid rgba(0,229,204,0.20);
-                    border-radius:10px;margin-bottom:1rem;font-family:'JetBrains Mono',monospace;
-                    font-size:.62rem;letter-spacing:1px;color:rgba(0,229,204,0.80);">
-            📱 Allow camera access when prompted by your browser
-        </div>
-    """, unsafe_allow_html=True)
+    # Camera is hidden until user clicks the button — prevents auto-launch on page load
+    if not st.session_state.show_camera:
+        st.markdown("<div style='height:.5rem'></div>", unsafe_allow_html=True)
+        st.markdown("""
+            <div style="text-align:center;padding:2rem 1rem 1.5rem;
+                        border:2px dashed rgba(0,229,204,0.25);border-radius:14px;
+                        background:rgba(0,229,204,0.03);margin-bottom:1rem;">
+                <div style="font-size:2.5rem;margin-bottom:.6rem;">📷</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:.62rem;
+                            letter-spacing:2px;text-transform:uppercase;color:#8b949e;
+                            margin-bottom:1.2rem;">
+                    Click below to activate your camera
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("📸   INITIALIZE CAMERA", use_container_width=True, key="cam_init"):
+            st.session_state.show_camera = True
+            st.rerun()
+    else:
+        if st.button("✕   STOP CAMERA", use_container_width=True, key="cam_stop"):
+            st.session_state.show_camera = False
+            st.rerun()
 
-    camera_photo = st.camera_input("Point camera at a maize leaf", label_visibility="visible")
+        st.markdown("""
+            <div style="padding:8px 12px;background:rgba(0,229,204,0.06);
+                        border:1px solid rgba(0,229,204,0.20);border-radius:8px;
+                        margin-bottom:.8rem;font-family:'JetBrains Mono',monospace;
+                        font-size:.60rem;letter-spacing:1px;color:rgba(0,229,204,0.80);">
+                📱 Allow camera access if prompted — then capture a clear leaf photo
+            </div>
+        """, unsafe_allow_html=True)
 
-    if camera_photo:
-        cam_image = Image.open(camera_photo).convert("RGB")
-        if validate_image(cam_image):
-            show_results(cam_image, model)
-    elif not camera_photo:
-        st.markdown('<div class="empty-state"><div class="empty-state-icon">📷</div><div class="empty-state-text">Allow camera access and capture a maize leaf</div></div>', unsafe_allow_html=True)
+        camera_photo = st.camera_input("", label_visibility="collapsed", key="cam_input")
 
+        if camera_photo:
+            cam_image = Image.open(camera_photo).convert("RGB")
+            if validate_image(cam_image):
+                show_results(cam_image, model, tab_key="camera")
+
+# ── Tab 3: Chatbot ────
 with tab3:
     display_chat_ui()
 
+# ─── Footer ───
 scan_count = len(st.session_state.get("history", []))
 st.markdown(f"""
     <div class="footer-bar">
