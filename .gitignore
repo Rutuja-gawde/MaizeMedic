@@ -1,0 +1,28 @@
+# Dataset - too large for GitHub
+dataset/
+
+# Trained model - hosted on Google Drive instead
+plant_disease_model.keras
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# VS Code
+.vscode/
+
+# Virtual environment
+venv/
+env/
+
+# Streamlit cache
+.streamlit/
+
+# Notebook checkpoints
+.ipynb_checkpoints/
+
+# Static/temp files
+static/
+*.log
