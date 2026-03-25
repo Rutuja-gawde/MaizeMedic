@@ -316,6 +316,47 @@ def apply_custom_styles():
         }}
 
         /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+           CAMERA INPUT
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+        /* Outer container — dark background, teal border */
+        [data-testid="stCameraInput"] {{
+            background: var(--bg-2) !important;
+            border: 1px solid var(--border-hi) !important;
+            border-radius: var(--radius) !important;
+            overflow: hidden !important;
+        }}
+
+        /* Strip white from every inner wrapper div */
+        [data-testid="stCameraInput"] > div,
+        [data-testid="stCameraInput"] > div > div,
+        [data-testid="stCameraInput"] section {{
+            background: var(--bg-2) !important;
+        }}
+
+        /* "Take photo" / "Clear photo" / "Use photo" buttons */
+        [data-testid="stCameraInput"] button {{
+            background: var(--teal-dim) !important;
+            border: 1px solid var(--border-hi) !important;
+            color: var(--teal) !important;
+            font-family: 'JetBrains Mono', monospace !important;
+            font-size: 0.65rem !important;
+            letter-spacing: 1.5px !important;
+            text-transform: uppercase !important;
+            border-radius: 8px !important;
+            padding: 9px 20px !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+        }}
+
+        [data-testid="stCameraInput"] button:hover {{
+            background: rgba(0,229,204,0.22) !important;
+            border-color: var(--teal) !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 16px rgba(0,229,204,0.25) !important;
+        }}
+
+        /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
            BUTTONS
         ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
         .stButton > button {{
